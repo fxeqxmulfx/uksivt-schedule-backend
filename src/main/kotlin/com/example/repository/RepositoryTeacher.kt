@@ -45,21 +45,23 @@ select distinct coalesce(lr.college_group,
                     else false
                     end                   as replacement
 from lesson l
-         full join lesson_replacement lr
+         full join (select *
+                    from lesson_replacement lrt
+                    where lrt.replacement_date >= $1
+                      and lrt.replacement_date <= $2
+                      and not lrt.generated) lr
                    on lr.college_group = l.college_group
                        and lr.replacement_date_day_of_week = l.day_of_week
                        and lr.lesson_number = l.lesson_number
-                       and not lr.generated
-                       and lr.replacement_date >= $1
-                       and lr.replacement_date <= $2
-         full join lesson_replacement lrg
+         full join (select *
+                    from lesson_replacement lrt
+                    where lrt.replacement_date >= $3
+                      and lrt.replacement_date <= $4
+                      and lrt.generated) lrg
                    on lrg.college_group = l.college_group
                        and lrg.replacement_date_day_of_week = l.day_of_week
                        and lrg.lesson_number = l.lesson_number
-                       and lrg.generated
-                       and lrg.replacement_date >= $3
-                       and lrg.replacement_date <= $4
-where coalesce(lr.substitute_teacher, l.teacher) ilike $5;
+where coalesce(lr.substitute_teacher, lrg.substitute_teacher, l.teacher) ilike $5;
         """.trimIndent()
         val tuple = Tuple.of(
             fromDate, byDate,
