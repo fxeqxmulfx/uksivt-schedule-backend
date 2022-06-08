@@ -19,6 +19,7 @@ ENV pg_host=CHANGEME
 ENV pg_database=CHANGEME
 ENV pg_user=CHANGEME
 ENV pg_password=CHANGEME
+ENV google_api=CHANGEME
 
 ENTRYPOINT java -jar backend.jar
 EXPOSE 8080

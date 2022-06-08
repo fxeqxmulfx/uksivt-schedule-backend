@@ -17,6 +17,7 @@ import java.time.LocalDate
 
 object ReplacementParser {
     private const val days = 7
+    private val googleApiKey: String = System.getenv("google_api")
 
     suspend fun run() {
         coroutineScope {
@@ -114,7 +115,7 @@ object ReplacementParser {
     private fun String.convertReferenceGoogleDocsToReferenceGoogleDisc(): String? {
         val id = this.split("/d/").getOrNull(1)?.split("/")?.firstOrNull()
         return if (id != null) {
-            "https://www.googleapis.com/drive/v3/files/$id?key=AIzaSyCCxucuNaGBfo8vGTMokZe8sIjlYy4aJpg&alt=media"
+            "https://www.googleapis.com/drive/v3/files/$id?key=$googleApiKey&alt=media"
         } else {
             null
         }
