@@ -9,10 +9,10 @@ import io.vertx.sqlclient.*
 object DataBase {
     private val connectOptions = PgConnectOptions()
         .setPort(5432)
-        .setHost(System.getenv("pg_host"))
-        .setDatabase(System.getenv("pg_database"))
-        .setUser(System.getenv("pg_user"))
-        .setPassword(System.getenv("pg_password"))
+        .setHost(System.getenv("PG_HOST"))
+        .setDatabase(System.getenv("PG_DB"))
+        .setUser(System.getenv("PG_USER"))
+        .setPassword(System.getenv("PG_PASSWORD"))
 
     private val poolOptions = PoolOptions()
         .setMaxSize(20)

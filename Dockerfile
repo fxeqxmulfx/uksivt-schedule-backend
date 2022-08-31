@@ -15,11 +15,17 @@ WORKDIR backend
 
 COPY --from=builder /temp/build/libs/*.jar backend.jar
 
-ENV pg_host=CHANGEME
-ENV pg_database=CHANGEME
-ENV pg_user=CHANGEME
-ENV pg_password=CHANGEME
-ENV google_api=CHANGEME
+ENV PG_HOST=CHANGEME
+ENV PG_DB=CHANGEME
+ENV PG_USER=CHANGEME
+ENV PG_PASSWORD=CHANGEME
+ENV GOOGLE_API=CHANGEME
 
-ENTRYPOINT java -jar backend.jar
+LABEL traefik.enable=true
+LABEL traefik.http.routers.uksivt_shedule_back.entrypoints=websecure
+LABEL traefik.http.routers.uksivt_shedule_back.rule=Host(`back.uksivt.com`)
+LABEL traefik.http.routers.uksivt_shedule_back.tls=true
+LABEL traefik.http.routers.uksivt_shedule_back.tls.certresolver=production
+
+ENTRYPOINT ["java", "-jar", "backend.jar"]
 EXPOSE 8080

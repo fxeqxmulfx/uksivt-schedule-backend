@@ -17,7 +17,7 @@ import java.time.LocalDate
 
 object ReplacementParser {
     private const val days = 7
-    private val googleApiKey: String = System.getenv("google_api")
+    private val googleApiKey: String = System.getenv("GOOGLE_API")
 
     suspend fun run() {
         coroutineScope {
@@ -68,6 +68,10 @@ object ReplacementParser {
                     inputStreamAndDate.inputStream.use {
                         inputStreamAndDate.parseDocx()
                     }
+                }
+
+                if (lessonReplacements.isEmpty()) {
+                    return
                 }
 
                 client.preparedQuery("delete from lesson_replacement where replacement_date = $1")

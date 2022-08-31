@@ -23,7 +23,7 @@ fun main() {
 //        runBlocking {
 //            ScheduleParser.run()
 //        }
-//    } )
+//    }
     embeddedServer(Netty, port = 8080, host = "0.0.0.0") {
         install(CORS) {
             anyHost()
