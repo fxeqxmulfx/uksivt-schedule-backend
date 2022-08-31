@@ -16,7 +16,7 @@ application {
 }
 
 group = "com.example"
-version = "0.6.0"
+version = "0.6.2"
 application {
     mainClass.set("com.example.ApplicationKt")
 
