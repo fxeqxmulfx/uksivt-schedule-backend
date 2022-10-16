@@ -21,7 +21,7 @@ order by college_group;
     }
 
     suspend fun getAllLessonByGroup(collegeGroup: String, fromDate: LocalDate, byDate: LocalDate): RowSet<Row> {
-        val woy = WeekFields.of(Locale("ru")).weekOfWeekBasedYear();
+        val woy = WeekFields.of(Locale("ru")).weekOfWeekBasedYear()
         val lessonType = if (fromDate.get(woy) % 2 == 0) {
             "Even"
         } else {
@@ -51,16 +51,18 @@ from (select coalesce(lr.college_group, l.college_group)              as college
                  else false
                  end                                                  as replacement
       from lesson l
-               full join lesson_replacement lr
+               full join (select *
+                          from lesson_replacement lrt
+                          where not lrt.for_the_whole_day
+                            and not lrt.generated
+                            and lrt.replacement_date >= $1
+                            and lrt.replacement_date <= $2) lr
                          on l.college_group = lr.college_group
                              and l.day_of_week = lr.replacement_date_day_of_week
                              and l.lesson_number = lr.lesson_number
-                             and not lr.for_the_whole_day
-                             and not lr.generated
-                             and lr.replacement_date >= $1
-                             and lr.replacement_date <= $2
       where l.lesson_type = 'None'
-         or l.lesson_type = '$lessonType') for_the_whole_day_false
+         or l.lesson_type = '$lessonType'
+         or l.id is null) for_the_whole_day_false
          full join (select lr.college_group,
                            lr.lesson_number,
                            lr.substitute_lesson,
@@ -75,13 +77,12 @@ from (select coalesce(lr.college_group, l.college_group)              as college
                       and lr.replacement_date <= $4) for_the_whole_day_true
                    on for_the_whole_day_false.college_group = for_the_whole_day_true.college_group
                        and for_the_whole_day_false.day_of_week = for_the_whole_day_true.replacement_date_day_of_week
-where for_the_whole_day_false.college_group = $5
-   or for_the_whole_day_true.college_group = $6;
+where coalesce(for_the_whole_day_false.college_group, for_the_whole_day_true.college_group) ilike $5;
                 """.trimIndent()
         val tuple = Tuple.of(
             fromDate, byDate,
             fromDate, byDate,
-            collegeGroup, collegeGroup,
+            collegeGroup
         )
         return DataBase.fetchAll(sql, tuple)
     }

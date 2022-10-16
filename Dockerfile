@@ -1,4 +1,4 @@
-FROM gradle:7.4.2-jdk17 as builder
+FROM gradle:7.5-jdk17 as builder
 
 WORKDIR /temp
 
@@ -13,7 +13,7 @@ FROM openjdk:17.0.2-slim
 
 WORKDIR backend
 
-COPY --from=builder /temp/build/libs/*.jar backend.jar
+COPY --from=builder /temp/build/libs/*all.jar backend.jar
 
 ENV PG_HOST=CHANGEME
 ENV PG_DB=CHANGEME
