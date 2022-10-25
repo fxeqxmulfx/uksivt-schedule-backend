@@ -14,6 +14,7 @@ import org.jsoup.Jsoup
 import java.io.InputStream
 import java.net.URL
 import java.time.LocalDate
+import kotlin.time.Duration.Companion.minutes
 
 object ReplacementParser {
     private const val days = 7
@@ -24,7 +25,7 @@ object ReplacementParser {
             launch {
                 while (true) {
                     try {
-                        parseSiteAndPutDb()
+                        scheduledParseSiteAndPutDb()
                     } catch (e: Exception) {
                         println(e.toString())
                     }
@@ -57,44 +58,66 @@ object ReplacementParser {
         }
     }
 
-    private suspend fun parseSiteAndPutDb() {
-        while (true) {
-            var tempClient: SqlClient? = null
-            try {
-                val client = DataBase.getClient()
-                tempClient = client
+    private var cachedReferenceGoogleDiscAndDate: List<Pair<URL, LocalDate>> = listOf()
 
-                val lessonReplacements: List<LessonReplacement> = downloadFiles().flatMap { inputStreamAndDate ->
-                    inputStreamAndDate.inputStream.use {
-                        inputStreamAndDate.parseDocx()
-                    }
+    private suspend fun parseSiteAndPutDb(forceUpdate: Boolean) {
+        var tempClient: SqlClient? = null
+        try {
+            val client = DataBase.getClient()
+            tempClient = client
+
+            val links = getLinks()
+
+            if (links.lastOrNull()?.second == cachedReferenceGoogleDiscAndDate.lastOrNull()?.second && !forceUpdate) {
+                println("no changes")
+                return
+            }
+
+            cachedReferenceGoogleDiscAndDate = links
+
+            val lessonReplacements: List<LessonReplacement> = links.downloadFiles().flatMap { inputStreamAndDate ->
+                inputStreamAndDate.inputStream.use {
+                    inputStreamAndDate.parseDocx()
                 }
+            }
 
-                if (lessonReplacements.isEmpty()) {
-                    return
-                }
+            if (lessonReplacements.isEmpty()) {
+                return
+            }
 
-                client.preparedQuery("delete from lesson_replacement where replacement_date = $1")
-                    .executeBatch(lessonReplacements.map { Tuple.of(it.replacementDate) }.toSet().toList()).await()
+            client.preparedQuery("delete from lesson_replacement where replacement_date = $1")
+                .executeBatch(lessonReplacements.map { Tuple.of(it.replacementDate) }.toSet().toList()).await()
 
-                client.preparedQuery(
-                    """
+            client.preparedQuery(
+                """
                     insert into lesson_replacement(college_group, for_the_whole_day, lesson_number, replaceable_lesson, 
                     substitute_lesson, substitute_teacher, lesson_hall, replacement_date, replacement_date_day_of_week,
                     generated) 
                     values($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
                 """.trimIndent()
-                ).executeBatch(lessonReplacements.map { it.toTuple() }).await()
+            ).executeBatch(lessonReplacements.map { it.toTuple() }).await()
 
-                println("substitutions ${lessonReplacements.map { it.replacementDate }.toSortedSet()}")
-            } finally {
-                tempClient?.close()?.await()
-            }
-            delay(3600000L)
+            println("substitutions ${lessonReplacements.map { it.replacementDate }.toSortedSet()}")
+        } finally {
+            tempClient?.close()?.await()
         }
     }
 
-    private fun downloadFiles(): List<InputStreamAndDate> {
+    private suspend fun scheduledParseSiteAndPutDb() {
+        var count = 0
+        while (true) {
+            count += 1
+            if (count == 60) {
+                parseSiteAndPutDb(true)
+                count = 0
+            } else {
+                parseSiteAndPutDb(false)
+            }
+            delay((1).minutes)
+        }
+    }
+
+    private fun getLinks(): List<Pair<URL, LocalDate>> {
         val html = Jsoup.connect("https://www.uksivt.ru/zameny").get()
         val tables = html.body().getElementsByTag("table").toList().subList(0, 1)
         val referencesGoogleDocsAndDate = tables.flatMap { table ->
@@ -109,11 +132,14 @@ object ReplacementParser {
                     url to LocalDate.of(LocalDate.now().year, month, day)
                 }
         }
-
         val referencesGoogleDiscAndDate: List<Pair<URL, LocalDate>> = referencesGoogleDocsAndDate.map {
             it.first.convertReferenceGoogleDocsToReferenceGoogleDisc().toURL() to it.second
         }
-        return referencesGoogleDiscAndDate.map { InputStreamAndDate(it.first.openStream(), it.second) }
+        return referencesGoogleDiscAndDate
+    }
+
+    private fun List<Pair<URL, LocalDate>>.downloadFiles(): List<InputStreamAndDate> {
+        return map { InputStreamAndDate(it.first.openStream(), it.second) }
     }
 
     private fun String.convertReferenceGoogleDocsToReferenceGoogleDisc(): String? {
