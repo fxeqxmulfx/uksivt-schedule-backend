@@ -21,12 +21,6 @@ order by college_group;
     }
 
     suspend fun getAllLessonByGroup(collegeGroup: String, fromDate: LocalDate, byDate: LocalDate): RowSet<Row> {
-        val woy = WeekFields.of(Locale("ru")).weekOfWeekBasedYear()
-        val lessonType = if (fromDate.get(woy) % 2 == 0) {
-            "Even"
-        } else {
-            "NotEven"
-        }
         val sql =
             """
 select distinct coalesce(for_the_whole_day_true.college_group,
@@ -61,7 +55,11 @@ from (select coalesce(lr.college_group, l.college_group)              as college
                              and l.day_of_week = lr.replacement_date_day_of_week
                              and l.lesson_number = lr.lesson_number
       where l.lesson_type = 'None'
-         or l.lesson_type = '$lessonType'
+         or l.lesson_type = case
+                                when extract(week from $3::date) % 2 = 0
+                                    then 'Even'
+                                else 'NotEven'
+          end
          or l.id is null) for_the_whole_day_false
          full join (select lr.college_group,
                            lr.lesson_number,
@@ -73,16 +71,16 @@ from (select coalesce(lr.college_group, l.college_group)              as college
                     from lesson_replacement lr
                     where lr.for_the_whole_day
                       and not lr.generated
-                      and lr.replacement_date >= $3
-                      and lr.replacement_date <= $4) for_the_whole_day_true
+                      and lr.replacement_date >= $4
+                      and lr.replacement_date <= $5) for_the_whole_day_true
                    on for_the_whole_day_false.college_group = for_the_whole_day_true.college_group
                        and for_the_whole_day_false.day_of_week = for_the_whole_day_true.replacement_date_day_of_week
-where coalesce(for_the_whole_day_false.college_group, for_the_whole_day_true.college_group) ilike $5;
+where coalesce(for_the_whole_day_false.college_group, for_the_whole_day_true.college_group) ilike $6;
                 """.trimIndent()
         val tuple = Tuple.of(
             fromDate, byDate,
-            fromDate, byDate,
-            collegeGroup
+            fromDate, fromDate,
+            byDate, collegeGroup
         )
         return DataBase.fetchAll(sql, tuple)
     }

@@ -4,9 +4,7 @@ import io.vertx.kotlin.coroutines.await
 import io.vertx.sqlclient.SqlClient
 import io.vertx.sqlclient.Tuple
 import kotlinx.coroutines.*
-import org.apache.poi.ss.usermodel.Cell
-import org.apache.poi.ss.usermodel.CellType
-import org.apache.poi.ss.usermodel.Sheet
+import org.apache.poi.ss.usermodel.*
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
 import java.nio.file.Files
 import java.nio.file.Path
@@ -119,131 +117,95 @@ object ScheduleParser {
         sheet: Sheet, cellNumber: Int,
         firstTime: Boolean, group: String,
     ): List<Lesson> {
-        var lesson: String? = null
-        var teacher: String? = null
-        var lessonHall: String? = null
-        var lastRowIndex = 0
-
-        val clearData = {
-            lesson = null
-            teacher = null
-            lessonHall = null
-            lastRowIndex = 0
-        }
-
         val result: MutableList<Lesson> = mutableListOf()
-        sheet.drop(2).forEachIndexed { rowIndex, row ->
-            val cellLessonHall: Cell? = row.getCell(cellNumber + 3)
-            val valueLessonHall = when (cellLessonHall?.cellType) {
-                CellType.STRING -> cellLessonHall.stringCellValue
-                CellType.NUMERIC -> cellLessonHall.numericCellValue.toInt().toString()
-                else -> ""
-            }
-            if (valueLessonHall.isNotBlank()) {
-                lessonHall = valueLessonHall
-            }
-
-            val cellLessonOrTeacher: Cell? = row.getCell(cellNumber)
-            val lessonOrTeacher = when (cellLessonOrTeacher?.cellType) {
-                CellType.STRING -> cellLessonOrTeacher.stringCellValue
-                CellType.NUMERIC -> cellLessonOrTeacher.numericCellValue.toInt().toString()
-                else -> ""
-            }
-            if (lessonOrTeacher.isNotBlank()) {
-                if (lesson != null && rowIndex - lastRowIndex >= 2) {
+        sheet.drop(2).chunked(4).forEachIndexed { rowIndex, rows ->
+            val rowsString = rows.map { it.getCell(cellNumber).valueToString() }
+            if (rows.getOrNull(1)?.getCell(cellNumber)?.cellStyle?.borderBottom == BorderStyle.NONE) {
+                val lesson = rowsString.firstOrNull { it.isNotBlank() } ?: ""
+                if (lesson.isNotBlank()) {
+                    val teacher = rowsString.firstOrNull { it.isNotBlank() && it != lesson } ?: ""
+                    val lessonHall =
+                        rows.map { it.getCell(cellNumber + 3).valueToString() }.firstOrNull { it.isNotBlank() } ?: ""
                     result.add(
                         Lesson(
                             collegeGroup = group,
-                            lesson = lesson!!,
-                            teacher = teacher ?: "",
-                            lessonHall = lessonHall ?: "",
-                            lessonType = getLessonType(lastRowIndex + 1),
-                            dayOfWeek = getDayOfWeek(lastRowIndex + 1, firstTime),
-                            lessonNumber = getLessonNumber(lastRowIndex + 1)
+                            lesson = lesson,
+                            teacher = teacher,
+                            lessonHall = lessonHall,
+                            lessonType = LessonType.None,
+                            dayOfWeek = getDayOfWeek(rowIndex, firstTime),
+                            lessonNumber = getLessonNumber(rowIndex)
                         )
                     )
-                    clearData()
                 }
-                if (lesson == null) {
-                    lesson = lessonOrTeacher
-                } else if (teacher == null) {
-                    teacher = lessonOrTeacher.trim()
+            } else {
+                val lessonNotEven = rowsString[0]
+                if (lessonNotEven.isNotBlank()) {
+                    val teacherNotEven = rowsString[1]
+                    val lessonHallNotEven =
+                        rows.map { it.getCell(cellNumber + 3).valueToString() }.take(2).firstOrNull { it.isNotBlank() }
+                            ?: ""
+                    result.add(
+                        Lesson(
+                            collegeGroup = group,
+                            lesson = lessonNotEven,
+                            teacher = teacherNotEven,
+                            lessonHall = lessonHallNotEven,
+                            lessonType = LessonType.NotEven,
+                            dayOfWeek = getDayOfWeek(rowIndex, firstTime),
+                            lessonNumber = getLessonNumber(rowIndex)
+                        )
+                    )
                 }
-                lastRowIndex = rowIndex
-            }
-
-            val line = rowIndex % 4
-            if (line == 1 && lesson != null && teacher != null) {
-                result.add(
-                    Lesson(
-                        collegeGroup = group,
-                        lesson = lesson!!,
-                        teacher = teacher ?: "",
-                        lessonHall = lessonHall ?: "",
-                        lessonType = LessonType.NotEven,
-                        dayOfWeek = getDayOfWeek(rowIndex, firstTime),
-                        lessonNumber = getLessonNumber(rowIndex),
+                val lessonEven = rowsString[0]
+                if (lessonEven.isNotBlank()) {
+                    val teacherEven = rowsString[1]
+                    val lessonHallEven =
+                        rows.map { it.getCell(cellNumber + 3).valueToString() }.drop(2).firstOrNull { it.isNotBlank() }
+                            ?: ""
+                    result.add(
+                        Lesson(
+                            collegeGroup = group,
+                            lesson = lessonEven,
+                            teacher = teacherEven,
+                            lessonHall = lessonHallEven,
+                            lessonType = LessonType.Even,
+                            dayOfWeek = getDayOfWeek(rowIndex, firstTime),
+                            lessonNumber = getLessonNumber(rowIndex)
+                        )
                     )
-                )
-                clearData()
-            }
-            if (line == 2 && lesson != null && teacher != null) {
-                result.add(
-                    Lesson(
-                        collegeGroup = group,
-                        lesson = lesson!!,
-                        teacher = teacher ?: "",
-                        lessonHall = lessonHall ?: "",
-                        lessonType = LessonType.None,
-                        dayOfWeek = getDayOfWeek(rowIndex, firstTime),
-                        lessonNumber = getLessonNumber(rowIndex),
-                    )
-                )
-                clearData()
-            }
-            if (line == 3 && lesson != null && teacher != null) {
-                result.add(
-                    Lesson(
-                        collegeGroup = group,
-                        lesson = lesson!!,
-                        teacher = teacher ?: "",
-                        lessonHall = lessonHall ?: "",
-                        lessonType = LessonType.Even,
-                        dayOfWeek = getDayOfWeek(rowIndex, firstTime),
-                        lessonNumber = getLessonNumber(rowIndex),
-                    )
-                )
-                clearData()
+                }
             }
         }
         return result.toList()
     }
 
-    private fun getLessonType(rowIndex: Int): LessonType {
-        return when (rowIndex % 4) {
-            0 -> LessonType.NotEven
-            1 -> LessonType.NotEven
-            2 -> LessonType.None
-            3 -> LessonType.Even
-            else -> LessonType.None
+    private fun Cell?.valueToString(): String {
+        if (this == null) {
+            return ""
+        }
+        return when (cellType) {
+            CellType.STRING -> stringCellValue
+            CellType.NUMERIC -> numericCellValue.toInt().toString()
+            else -> ""
         }
     }
 
     private fun getDayOfWeek(row: Int, firstTime: Boolean): DayOfWeek {
-        if (row <= 27) {
+        if (row <= 6) {
             if (firstTime) {
                 return DayOfWeek.MONDAY
             }
             return DayOfWeek.THURSDAY
 
         }
-        if (row <= 55) {
+        if (row <= 13) {
             if (firstTime) {
                 return DayOfWeek.TUESDAY
             }
             return DayOfWeek.FRIDAY
         }
-        if (row <= 83) {
+        if (row <= 20) {
             if (firstTime) {
                 return DayOfWeek.WEDNESDAY
             }
@@ -253,25 +215,25 @@ object ScheduleParser {
     }
 
     private fun getLessonNumber(row: Int): Int {
-        if (row in 0..3 || row in 28..31 || row in 56..59) {
+        if (row == 0 || row == 7 || row == 14) {
             return 0
         }
-        if (row in 4..7 || row in 32..35 || row in 60..63) {
+        if (row == 1 || row == 8 || row == 15) {
             return 1
         }
-        if (row in 8..11 || row in 36..39 || row in 64..67) {
+        if (row == 2 || row == 9 || row == 16) {
             return 2
         }
-        if (row in 12..15 || row in 40..43 || row in 68..71) {
+        if (row == 3 || row == 10 || row == 17) {
             return 3
         }
-        if (row in 16..19 || row in 44..47 || row in 72..75) {
+        if (row == 4 || row == 11 || row == 18) {
             return 4
         }
-        if (row in 20..23 || row in 48..51 || row in 76..79) {
+        if (row == 5 || row == 12 || row == 19) {
             return 5
         }
-        if (row in 24..27 || row in 52..55 || row in 80..83) {
+        if (row == 6 || row == 13 || row == 20) {
             return 6
         }
         return 10
