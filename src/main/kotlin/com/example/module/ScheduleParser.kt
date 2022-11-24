@@ -148,7 +148,7 @@ object ScheduleParser {
                     result.add(
                         Lesson(
                             collegeGroup = group,
-                            lesson = lessonNotEven,
+                            lesson = "$lessonNotEven (Нечетная неделя)",
                             teacher = teacherNotEven,
                             lessonHall = lessonHallNotEven,
                             lessonType = LessonType.NotEven,
@@ -166,7 +166,7 @@ object ScheduleParser {
                     result.add(
                         Lesson(
                             collegeGroup = group,
-                            lesson = lessonEven,
+                            lesson = "$lessonEven (Четная неделя)",
                             teacher = teacherEven,
                             lessonHall = lessonHallEven,
                             lessonType = LessonType.Even,
