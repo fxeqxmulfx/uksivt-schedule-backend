@@ -14,6 +14,7 @@ import org.jsoup.Jsoup
 import java.io.InputStream
 import java.net.URL
 import java.time.LocalDate
+import java.time.ZonedDateTime
 import kotlin.time.Duration.Companion.minutes
 
 object ReplacementParser {
@@ -60,6 +61,8 @@ object ReplacementParser {
 
     private var cachedReferenceGoogleDiscAndDate: List<Pair<URL, LocalDate>> = listOf()
 
+    var lastUpdate: ZonedDateTime? = null
+
     private suspend fun parseSiteAndPutDb(forceUpdate: Boolean) {
         var tempClient: SqlClient? = null
         try {
@@ -96,6 +99,12 @@ object ReplacementParser {
                     values($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
                 """.trimIndent()
             ).executeBatch(lessonReplacements.map { it.toTuple() }).await()
+
+            if (lessonReplacements.last().replacementDate == LocalDate.now()
+                || lessonReplacements.last().replacementDate.isAfter(LocalDate.now())
+            ) {
+                lastUpdate = ZonedDateTime.now()
+            }
 
             println("substitutions ${lessonReplacements.map { it.replacementDate }.toSortedSet()}")
         } finally {

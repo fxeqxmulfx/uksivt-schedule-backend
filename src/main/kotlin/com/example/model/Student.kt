@@ -3,7 +3,6 @@ package com.example.model
 import com.example.repository.RepositoryStudent
 import java.time.LocalDate
 import java.time.Month
-import java.util.*
 
 object Student {
     suspend fun getAllGroup(): List<String> {
@@ -22,8 +21,8 @@ object Student {
         return year - groupYear
     }
 
-    internal fun getTimeByLessonNumberAndDay(lessonNumber: Int, dayOfWeek: Int, college_group: String): String {
-        val course = calculateCourse(college_group) ?: ""
+    internal fun getTimeByLessonNumberAndDay(lessonNumber: Int, dayOfWeek: Int, collegeGroup: String): String {
+        val course = calculateCourse(collegeGroup) ?: ""
         return when (dayOfWeek) {
             6 -> when (lessonNumber) {
                 0 -> "s08:00 e09:20"

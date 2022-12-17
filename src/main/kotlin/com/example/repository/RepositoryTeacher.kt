@@ -9,11 +9,10 @@ import java.time.LocalDate
 
 object RepositoryTeacher {
     suspend fun getAllTeacher(): RowSet<Row> {
-        return DataBase.fetchAll(
-            """
-select teacher
-from lesson
-group by teacher;
+        return DataBase.fetchAll("""
+        select teacher
+        from lesson
+        group by teacher;
         """.trimIndent(), Tuple.tuple()
         )
     }
