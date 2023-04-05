@@ -59,7 +59,7 @@ object ReplacementParser {
         }
     }
 
-    private var cachedReferenceGoogleDiscAndDate: List<Pair<URL, LocalDate>> = listOf()
+    private var cachedReference: List<Pair<URL, LocalDate>> = listOf()
 
     var lastUpdate: ZonedDateTime? = null
 
@@ -71,12 +71,12 @@ object ReplacementParser {
 
             val links = getLinks()
 
-            if (links.lastOrNull()?.second == cachedReferenceGoogleDiscAndDate.lastOrNull()?.second && !forceUpdate) {
+            if (links.lastOrNull()?.second == cachedReference.lastOrNull()?.second && !forceUpdate) {
                 println("no changes")
                 return
             }
 
-            cachedReferenceGoogleDiscAndDate = links
+            cachedReference = links
 
             val lessonReplacements: List<LessonReplacement> = links.downloadFiles().flatMap { inputStreamAndDate ->
                 inputStreamAndDate.inputStream.use {
@@ -141,10 +141,26 @@ object ReplacementParser {
                     url to LocalDate.of(LocalDate.now().year, month, day)
                 }
         }
+        val referencesUksivt = tables.flatMap { table ->
+            (table?.getElementsByAttributeValueContaining("href", "storage")
+                ?.map { it.attr("href") }
+                ?.takeLast(days) ?: listOf()).mapNotNull { brokenUrl ->
+                val url = "https://www.uksivt.ru/storage/files/all/ZAMENY/${brokenUrl.split("/").last()}"
+                val stringDate = url.split("/").last()
+                try {
+                    val day = stringDate.take(2).toInt()
+                    val month = stringDate.drop(3).take(2).toInt()
+                    val year = "20${stringDate.drop(6).take(2)}".toInt()
+                    url.toURL() to LocalDate.of(year, month, day)
+                } catch (e: NumberFormatException) {
+                    null
+                }
+            }
+        }
         val referencesGoogleDiscAndDate: List<Pair<URL, LocalDate>> = referencesGoogleDocsAndDate.map {
             it.first.convertReferenceGoogleDocsToReferenceGoogleDisc().toURL() to it.second
         }
-        return referencesGoogleDiscAndDate
+        return referencesGoogleDiscAndDate + referencesUksivt
     }
 
     private fun List<Pair<URL, LocalDate>>.downloadFiles(): List<InputStreamAndDate> {

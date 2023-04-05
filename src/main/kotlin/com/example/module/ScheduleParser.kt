@@ -18,27 +18,27 @@ object ScheduleParser {
                     try {
                         val lessons = parseFile(XSSFWorkbook(withContext(Dispatchers.IO) {
                             Files.newInputStream(
-                                Path.of("/home/misha/IdeaProjects/uksivt-schedule/src/main/resources/Общеобразовательное 22-23 1сем.xlsx")
+                                Path.of("/home/misha/IdeaProjects/uksivt-schedule/src/main/resources/Общеобразовательное 22-23 2 сем (проект).xlsx")
                             )
                         })).toMutableList()
                         lessons += parseFile(XSSFWorkbook(withContext(Dispatchers.IO) {
                             Files.newInputStream(
-                                Path.of("/home/misha/IdeaProjects/uksivt-schedule/src/main/resources/Отделение ВТ 1 сем 22-23.xlsx")
+                                Path.of("/home/misha/IdeaProjects/uksivt-schedule/src/main/resources/ВТ 2 семестр 22-23 (проект).xlsx")
                             )
                         }))
                         lessons += parseFile(XSSFWorkbook(withContext(Dispatchers.IO) {
                             Files.newInputStream(
-                                Path.of("/home/misha/IdeaProjects/uksivt-schedule/src/main/resources/Отделение права 1 сем 2022-2023.xlsx")
+                                Path.of("/home/misha/IdeaProjects/uksivt-schedule/src/main/resources/Юристы 2 семестр 22-23 (проект).xlsx")
                             )
                         }))
                         lessons += parseFile(XSSFWorkbook(withContext(Dispatchers.IO) {
                             Files.newInputStream(
-                                Path.of("/home/misha/IdeaProjects/uksivt-schedule/src/main/resources/Отделение Э и ЗИО 1 сем 22-23.xlsx")
+                                Path.of("/home/misha/IdeaProjects/uksivt-schedule/src/main/resources/Экономисты 2 семестр 22-23 (проект).xlsx")
                             )
                         }))
                         lessons += parseFile(XSSFWorkbook(withContext(Dispatchers.IO) {
                             Files.newInputStream(
-                                Path.of("/home/misha/IdeaProjects/uksivt-schedule/src/main/resources/Программирование 1 семестр 22-23.xlsx")
+                                Path.of("/home/misha/IdeaProjects/uksivt-schedule/src/main/resources/Программирование 2 семестр 22-23 (проект).xlsx")
                             )
                         }))
                         putIntoDb(lessons)
